@@ -1,0 +1,10 @@
+[Unit]
+Description=Parkhaus-Prognose Modell-Retraining
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/parkhaus-prognose
+EnvironmentFile=/opt/parkhaus-prognose/.env
+ExecStart=/opt/parkhaus-prognose/.venv/bin/python -m data_pipeline.retrain_all
+User=parkhaus

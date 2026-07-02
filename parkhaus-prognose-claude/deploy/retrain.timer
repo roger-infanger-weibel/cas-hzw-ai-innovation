@@ -1,0 +1,9 @@
+[Unit]
+Description=Taegliches Retraining der Parkhaus-Prognose (03:00 Uhr nachts)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Parkhaus LLM Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
+        #chatbox { background: white; height: 400px; border: 1px solid #ccc; padding: 20px; overflow-y: scroll; border-radius: 8px; margin-bottom: 20px; }
+        .user { color: #007bff; margin-bottom: 10px; font-weight: bold; }
+        .bot { color: #28a745; margin-bottom: 20px; white-space: pre-line; }
+        #input-area { display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>🅿️ Parkhaus SAX-Daten Analyse Chat</h2>
+    <div id="chatbox"></div>
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Frage eingeben (z.B. Zeig mir Basel)..." onkeypress="if(event.key === 'Enter') sendMessage()">
+        <button onclick="sendMessage()">Senden</button>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const inputDel = document.getElementById("user-input");
+            const message = inputDel.value.trim();
+            if(!message) return;
+
+            const chatbox = document.getElementById("chatbox");
+            chatbox.innerHTML += `<div class="user">Du: ${message}</div>`;
+            inputDel.value = "";
+            chatbox.scrollTop = chatbox.scrollHeight;
+
+            chatbox.innerHTML += `<div class="bot" id="loading">... LLM denkt nach ...</div>`;
+
+            try {
+                const response = await fetch("http://127.0.0.1:8000/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_message: message })
+                });
+                const data = await response.json();
+                
+                document.getElementById("loading").remove();
+                chatbox.innerHTML += `<div class="bot">Modell: ${data.response || data.error}</div>`;
+            } catch (error) {
+                document.getElementById("loading").remove();
+                chatbox.innerHTML += `<div class="bot" style="color:red;">Fehler bei der Verbindung zum Server.</div>`;
+            }
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
