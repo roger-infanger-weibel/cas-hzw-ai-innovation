@@ -31,3 +31,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+
+
+class ParkhausInfo(BaseModel):
+    id: str
+    name: str | None = None
+    city: str | None = None

@@ -30,8 +30,34 @@ MODEL_NAME = os.getenv("MODEL_NAME", "lightgbm_occupancy")
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
     mask = y_true != 0
-    return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
+    if not np.any(mask):
+        return float("nan")
+    diff = np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])
+    return float(np.mean(diff) * 100)
+
+
+def sanitize_metrics(metrics: dict) -> dict:
+    """Keep only finite numeric values so MLflow can log them safely."""
+    sanitized = {}
+    for key, value in metrics.items():
+        if isinstance(value, (int, float, np.integer, np.floating)) and np.isfinite(value):
+            sanitized[key] = float(value)
+    return sanitized
+
+
+def log_model_artifact(model) -> None:
+    """Log the trained model to MLflow without inferring pip requirements."""
+    try:
+        mlflow.lightgbm.log_model(model, name="model", pip_requirements=[])
+    except (Exception, KeyboardInterrupt) as exc:
+        print(f"  Warnung: MLflow-Model-Logging fehlgeschlagen ({exc}); speichere Modell lokal weiter.")
+
+
+def rmse(y_true, y_pred):
+    return float(np.sqrt(mean_squared_error(y_true, y_pred)))
 
 
 def baseline_seasonal_naive(df: pd.DataFrame) -> dict:
@@ -40,7 +66,7 @@ def baseline_seasonal_naive(df: pd.DataFrame) -> dict:
     y_pred = df["lag_7d"].values
     return {
         "baseline_mae": mean_absolute_error(y_true, y_pred),
-        "baseline_rmse": mean_squared_error(y_true, y_pred, squared=False),
+        "baseline_rmse": rmse(y_true, y_pred),
         "baseline_mape": mean_absolute_percentage_error(y_true, y_pred),
     }
 
@@ -50,8 +76,17 @@ def train_and_evaluate(df: pd.DataFrame, feature_cols: list[str], test_size: flo
     split_idx = int(len(df) * (1 - test_size))
     train_df, test_df = df.iloc[:split_idx], df.iloc[split_idx:]
 
+    if len(train_df) < 2 or len(test_df) < 1:
+        raise ValueError("Nicht genug Daten für Training und Evaluierung.")
+
     X_train, y_train = train_df[feature_cols], train_df["y"]
     X_test, y_test = test_df[feature_cols], test_df["y"]
+
+    if X_train.empty or X_test.empty:
+        raise ValueError("Leere Feature-Matrix für Training oder Test.")
+
+    if X_train.ndim != 2 or X_test.ndim != 2:
+        raise ValueError("Feature-Matrix muss 2-dimensional sein.")
 
     model = lgb.LGBMRegressor(
         n_estimators=500,
@@ -62,6 +97,7 @@ def train_and_evaluate(df: pd.DataFrame, feature_cols: list[str], test_size: flo
         subsample=0.8,
         colsample_bytree=0.8,
         random_state=42,
+        verbosity=-1,
     )
     model.fit(
         X_train, y_train,
@@ -75,7 +111,7 @@ def train_and_evaluate(df: pd.DataFrame, feature_cols: list[str], test_size: flo
 
     metrics = {
         "mae": mean_absolute_error(y_test, y_pred),
-        "rmse": mean_squared_error(y_test, y_pred, squared=False),
+        "rmse": rmse(y_test, y_pred),
         "mape": mean_absolute_percentage_error(y_test.values, y_pred),
     }
     baseline_metrics = baseline_seasonal_naive(test_df)
@@ -105,17 +141,22 @@ def run(parkhaus_id: str, since: str, weather_lat: float, weather_lon: float):
     mlflow.set_experiment("parkhaus_prognose")
     with mlflow.start_run(run_name=f"lgbm_{parkhaus_id}"):
         model, metrics = train_and_evaluate(feature_df, feature_cols)
+        metrics = sanitize_metrics(metrics)
 
         mlflow.log_params({"parkhaus_id": parkhaus_id, "n_features": len(feature_cols)})
         mlflow.log_metrics(metrics)
-        mlflow.lightgbm.log_model(model, "model")
+        log_model_artifact(model)
 
         print("  Metriken:")
         for k, v in metrics.items():
             print(f"    {k}: {v:.2f}")
 
-        improvement = (metrics["baseline_mae"] - metrics["mae"]) / metrics["baseline_mae"] * 100
-        print(f"  -> Verbesserung ggü. Baseline (7-Tage-Lag): {improvement:.1f}%")
+        baseline_mae = metrics.get("baseline_mae", 0.0)
+        if baseline_mae and baseline_mae != 0:
+            improvement = (baseline_mae - metrics["mae"]) / baseline_mae * 100
+            print(f"  -> Verbesserung ggü. Baseline (7-Tage-Lag): {improvement:.1f}%")
+        else:
+            print("  -> Verbesserung ggü. Baseline (7-Tage-Lag): nicht berechenbar (Baseline-MAE = 0)")
 
     print("[4/4] Speichere Modell lokal ...")
     os.makedirs(MODEL_DIR, exist_ok=True)

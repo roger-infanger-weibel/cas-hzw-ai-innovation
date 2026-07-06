@@ -124,6 +124,35 @@ def fetch_weather_features(lat: float, lon: float, start_date: str, end_date: st
     return weather
 
 
+def fetch_weather_forecast(lat: float, lon: float, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Holt stündliche Wetterprognosen von Open-Meteo für zukünftige Zeitpunkte.
+    Wird auf 15-Minuten-Raster hochgesampelt (forward-fill).
+    """
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,precipitation",
+        "timezone": "Europe/Zurich",
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()["hourly"]
+
+    weather = pd.DataFrame(
+        {
+            "ts": pd.to_datetime(data["time"]),
+            "temperature": data["temperature_2m"],
+            "precipitation": data["precipitation"],
+        }
+    ).set_index("ts").resample("15min").ffill().reset_index()
+
+    return weather
+
+
 def build_feature_matrix(
     raw_df: pd.DataFrame,
     weather_df: pd.DataFrame | None = None,

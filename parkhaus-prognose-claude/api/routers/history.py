@@ -1,14 +1,15 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from data_pipeline.db import fetch_raw_occupancy, list_parkhaeuser
+from data_pipeline.db import fetch_raw_occupancy, list_parkhaeuser, list_parkhaeuser_info
 from api.schemas import OccupancyPoint
+from api.schemas import ParkhausInfo
 
 router = APIRouter(tags=["history"])
 
 
-@router.get("/parkhaeuser", response_model=list[str])
+@router.get("/parkhaeuser", response_model=list[ParkhausInfo])
 def get_parkhaeuser():
-    return list_parkhaeuser()
+    return list_parkhaeuser_info()
 
 
 @router.get("/parkhaus/{parkhaus_id}/aktuell", response_model=OccupancyPoint)

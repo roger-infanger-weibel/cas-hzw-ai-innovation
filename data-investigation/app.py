@@ -22,6 +22,7 @@ JSON_FILE_PATH = "view_parkhaus_sax_strings.json"
 try:
     with open(JSON_FILE_PATH, "r", encoding="utf-8") as f:
         parking_data = json.load(f)
+    #print(parking_data)
     print(f"[INFO] Erfolgreich {len(parking_data)} Datensätze aus JSON geladen.")
 except FileNotFoundError:
     print(f"[ERROR] Datei '{JSON_FILE_PATH}' wurde nicht gefunden! Bitte Pfad prüfen.")

@@ -61,7 +61,23 @@ except Exception as e:
     st.stop()
 
 with st.sidebar:
-    parkhaus_id = st.selectbox("Parkhaus", parkhaeuser)
+    # parkhaeuser is now a list of {id,name,city}
+    cities = sorted({p.get("city") for p in parkhaeuser if p.get("city")})
+    cities.insert(0, "Alle")
+    selected_city = st.selectbox("Stadt", cities, index=0)
+
+    # filter parkhaeuser by city
+    if selected_city and selected_city != "Alle":
+        filtered = [p for p in parkhaeuser if p.get("city") == selected_city]
+    else:
+        filtered = parkhaeuser
+
+    # display human-friendly names in the dropdown, fall back to id
+    options = [f"{p.get('name') or p.get('id')} ({p.get('id')})" for p in filtered]
+    choice = st.selectbox("Parkhaus", options)
+    # extract id from chosen option
+    parkhaus_id = choice.split("(")[-1].rstrip(")")
+
     horizon = st.slider("Prognosehorizont (Stunden)", 1, 8, 4) * 60
     history_days = st.slider("Historie anzeigen (Tage)", 1, 14, 3)
 
@@ -87,6 +103,18 @@ forecast_data = get_forecast(parkhaus_id, horizon)
 fc = pd.DataFrame(forecast_data["points"])
 if not fc.empty:
     fc["ts"] = pd.to_datetime(fc["ts"])
+    # If the forecast starts after the last history timestamp, prepend a connector
+    # using the last observed free_spots so the plot looks continuous.
+    # This is a visual aid only and does not alter the actual forecast points.
+    if not hist.empty:
+        last_hist_ts = hist["ts"].iloc[-1]
+        first_fc_ts = fc["ts"].iloc[0]
+        if first_fc_ts > last_hist_ts:
+            connector = pd.DataFrame([
+                {"ts": last_hist_ts, "predicted_free_spots": hist["free_spots"].iloc[-1]}
+            ])
+            fc = pd.concat([connector, fc], ignore_index=True)
+    fc = fc.sort_values("ts").reset_index(drop=True)
 
 fig = go.Figure()
 fig.add_trace(go.Scatter(

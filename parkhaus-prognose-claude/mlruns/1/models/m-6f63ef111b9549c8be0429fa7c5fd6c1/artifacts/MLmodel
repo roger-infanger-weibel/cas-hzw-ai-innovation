@@ -1,0 +1,27 @@
+artifact_path: file:C:/Users/Hp/Documents/HWZ-Github-Workspace/cas-hzw-ai-innovation/parkhaus-prognose-claude/mlruns/1/models/m-6f63ef111b9549c8be0429fa7c5fd6c1/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.skops
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMRegressor
+    serialization_format: skops
+    skops_trusted_types:
+    - lightgbm.sklearn.LGBMClassifier
+    - lightgbm.basic.Booster
+    - collections.OrderedDict
+    - lightgbm.sklearn.LGBMRegressor
+  python_function:
+    data: model.skops
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.13.2
+mlflow_version: 3.14.0
+model_id: m-6f63ef111b9549c8be0429fa7c5fd6c1
+model_size_bytes: 902704
+model_uuid: m-6f63ef111b9549c8be0429fa7c5fd6c1
+prompts: null
+run_id: 733de9a48d154a329c464ac4ee9cbcd5
+utc_time_created: '2026-07-06 15:32:29.051410'

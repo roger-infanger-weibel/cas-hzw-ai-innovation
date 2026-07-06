@@ -59,10 +59,16 @@ def fetch_raw_occupancy(
             city,
             name,
             fetch_ts AS ts,
-            CAST(total AS UNSIGNED) AS total_spots,
-            CAST(total AS UNSIGNED) - CAST(free AS UNSIGNED) AS occupied_spots
+            CAST(total AS SIGNED) AS total_spots,
+            CASE
+                WHEN CAST(total AS SIGNED) >= CAST(free AS SIGNED)
+                THEN CAST(total AS SIGNED) - CAST(free AS SIGNED)
+                ELSE NULL
+            END AS occupied_spots
         FROM {RAW_TABLE}
         WHERE 1=1
+            AND total REGEXP '^[0-9]+$'
+            AND free REGEXP '^[0-9]+$'
     """
     params = {}
     if parkhaus_id:
@@ -86,6 +92,15 @@ def list_parkhaeuser() -> list[str]:
     query = f"SELECT DISTINCT id FROM {RAW_TABLE} ORDER BY id"
     with get_engine().connect() as conn:
         return [row[0] for row in conn.execute(text(query))]
+
+
+def list_parkhaeuser_info() -> list[dict]:
+    """Return list of parkhaus info dicts: id, name, city."""
+    query = f"SELECT DISTINCT id, name, city FROM {RAW_TABLE} ORDER BY id"
+    with get_engine().connect() as conn:
+        return [
+            {"id": row[0], "name": row[1], "city": row[2]} for row in conn.execute(text(query))
+        ]
 
 
 def fetch_sax_strings(parkhaus_id: str | None = None, since: str | None = None) -> pd.DataFrame:

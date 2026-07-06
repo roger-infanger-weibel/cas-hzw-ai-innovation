@@ -14,12 +14,20 @@ from datetime import timedelta
 import joblib
 import pandas as pd
 
-from data_pipeline.features import add_calendar_features, regularize_timeseries
+from data_pipeline.features import (
+    add_calendar_features,
+    fetch_weather_features,
+    fetch_weather_forecast,
+    regularize_timeseries,
+)
 from data_pipeline.db import fetch_raw_occupancy
 
 MODEL_DIR = os.getenv("MODEL_DIR", "./models")
 MODEL_NAME = os.getenv("MODEL_NAME", "lightgbm_occupancy")
 MAX_HORIZON_STEPS = 32  # 32 * 15min = 8 Stunden Prognosehorizont, Obergrenze für Genauigkeit
+WEATHER_LAT = float(os.getenv("WEATHER_LAT", "47.3769"))
+WEATHER_LON = float(os.getenv("WEATHER_LON", "8.5417"))
+WEATHER_FEATURES = ["temperature", "precipitation"]
 
 _model_cache: dict[str, dict] = {}
 
@@ -33,7 +41,12 @@ def load_model(parkhaus_id: str) -> dict:
     return _model_cache[parkhaus_id]
 
 
-def _build_inference_row(history: pd.DataFrame, target_ts: pd.Timestamp, total_spots: int) -> pd.DataFrame:
+def _build_inference_row(
+    history: pd.DataFrame,
+    target_ts: pd.Timestamp,
+    total_spots: int,
+    weather_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     """Baut die Feature-Zeile für genau einen zukünftigen Zeitpunkt aus der (ggf. bereits
     um vorherige Prognosen erweiterten) Historie."""
     row = pd.DataFrame({"parkhaus_id": [history["parkhaus_id"].iloc[0]], "ts": [target_ts]})
@@ -56,7 +69,27 @@ def _build_inference_row(history: pd.DataFrame, target_ts: pd.Timestamp, total_s
     row["roll_mean_24h"] = recent["occupied_spots"].mean()
 
     row["total_spots"] = total_spots
+
+    if weather_df is not None:
+        def get_weather(feature_name: str):
+            match = weather_df.loc[weather_df["ts"] == target_ts, feature_name]
+            if not match.empty:
+                return match.iloc[0]
+            fallback = weather_df[weather_df["ts"] < target_ts].tail(1)[feature_name]
+            return fallback.iloc[0] if not fallback.empty else None
+
+        row["temperature"] = get_weather("temperature")
+        row["precipitation"] = get_weather("precipitation")
+
     return row
+
+
+def _fetch_weather_for_forecast(start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> pd.DataFrame:
+    start_date = start_ts.strftime("%Y-%m-%d")
+    end_date = end_ts.strftime("%Y-%m-%d")
+    weather_df = fetch_weather_forecast(WEATHER_LAT, WEATHER_LON, start_date, end_date)
+    weather_df["ts"] = pd.to_datetime(weather_df["ts"])
+    return weather_df
 
 
 def forecast(parkhaus_id: str, horizon_minutes: int = 240) -> list[dict]:
@@ -82,14 +115,22 @@ def forecast(parkhaus_id: str, horizon_minutes: int = 240) -> list[dict]:
     results = []
 
     working_history = history[["parkhaus_id", "ts", "occupied_spots", "total_spots"]].copy()
+    weather_df = None
+    if any(c in WEATHER_FEATURES for c in feature_cols):
+        try:
+            weather_df = _fetch_weather_for_forecast(last_ts + timedelta(minutes=15), last_ts + timedelta(minutes=15 * n_steps))
+        except Exception as e:
+            # Forecast should still work without weather if API request fails.
+            print(f"Warnung: Wetterprognose fehlgeschlagen ({e}), berechne Prognose ohne Wetter.")
+            weather_df = None
 
     for step in range(1, n_steps + 1):
         target_ts = last_ts + timedelta(minutes=15 * step)
-        row = _build_inference_row(working_history, target_ts, total_spots)
+        row = _build_inference_row(working_history, target_ts, total_spots, weather_df=weather_df)
 
-        missing = [c for c in feature_cols if row[c].isna().any()]
+        missing = [c for c in feature_cols if c not in row.columns or row[c].isna().any()]
         if missing:
-            # zu wenig Historie für diesen Lag -> Prognose an dieser Stelle abbrechen
+            # zu wenig Historie oder fehlende Wetterdaten -> Prognose an dieser Stelle abbrechen
             break
 
         pred = float(model.predict(row[feature_cols])[0])
