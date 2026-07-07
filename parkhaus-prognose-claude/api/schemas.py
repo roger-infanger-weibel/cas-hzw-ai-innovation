@@ -24,6 +24,26 @@ class ForecastResponse(BaseModel):
     points: list[ForecastPoint]
 
 
+class SaxOverview(BaseModel):
+    parkhaus_id: str
+    date: str
+    weekday: int
+    weekday_name: str
+    sax_string: str
+    weekday_average_sax: str
+
+
+class WeatherPoint(BaseModel):
+    ts: datetime
+    temperature: float
+    precipitation: float
+
+
+class WeatherOverview(BaseModel):
+    current: WeatherPoint | None
+    forecast: list[WeatherPoint]
+
+
 class ChatRequest(BaseModel):
     message: str
     parkhaus_id: str | None = None

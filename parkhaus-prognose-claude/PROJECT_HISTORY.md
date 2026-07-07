@@ -9,6 +9,15 @@ This document is a simple place to capture the evolution of the project, importa
 
 ## 2. Project Timeline
 
+### 2026-07-07
+- 11:15: Fixed forecast endpoint failure caused by Open-Meteo archive weather requests; switched backend weather fetch to forecast API and added fallback handling.
+- 12:00: Improved Streamlit frontend with city filter, friendly parkhaus names, and browser-based selection persistence.
+- 12:30: Removed deprecated Streamlit `use_container_width` usage and stabilized UI state handling.
+- 13:20: Replaced SAX visualization with compact A–D occupancy categories, including hourly occupancy matrix laid out from left-to-right and weekday labels.
+- 14:05: Fixed frontend cookie/state bug causing `selected_city.title()` type errors.
+- 14:45: Aligned occupancy-level display and history chart to use the same hourly data source, showing hours only and preserving multi-day history.
+- 15:00: Kept the weather overview endpoint available while decoupling weather details from the occupancy-level panel.
+
 ### 2026-07-06
 - Initial retraining pipeline debugging started.
 - Resolved MLflow metric logging issue caused by non-finite values such as NaN/Inf.
