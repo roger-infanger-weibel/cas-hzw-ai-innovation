@@ -37,7 +37,7 @@ def fetch_and_store_historical_weather():
     cursor = connection.cursor()
     cursor.execute("SET time_zone = '+00:00';")
 
-    start_date = "2026-01-01"
+    start_date = "2026-07-01"
     end_date = datetime.date.today().strftime("%Y-%m-%d")
 
     for city in CITIES:
@@ -188,6 +188,6 @@ def store_historical_events():
 
 
 if __name__ == "__main__":
-    #fetch_and_store_historical_weather()
+    fetch_and_store_historical_weather()
     store_historical_events()
     print("\nFertig! Alle historischen Daten ab 01.01.2026 sind importiert.")
