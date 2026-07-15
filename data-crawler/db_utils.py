@@ -67,6 +67,23 @@ def insert_measurement(cursor, data):
         logging.error(f"Error inserting record {data}: {e}")
         raise
 
+def get_cities_config():
+    """
+    Load city configuration from the `cities` table.
+
+    Returns:
+        dict: {"cities": {city_id: {name, url, latitude, longitude, collector, api_url}}}
+    """
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name, url, latitude, longitude, collector, api_url FROM cities")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return {"cities": {row["id"]: row for row in rows}}
+
+
 def insert_log(cursor, severity, text):
     """
     Insert a log entry into the log table.

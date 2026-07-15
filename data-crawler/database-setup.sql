@@ -1,19 +1,22 @@
 -- 1. Städte-Tabelle (Metadata)
+-- collector/api_url: Konfiguration für collect_data.py (ersetzt die frühere cities.json)
 CREATE TABLE IF NOT EXISTS cities (
     id VARCHAR(50) PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     url VARCHAR(255) NULL,
     latitude DECIMAL(9, 6) NOT NULL,
-    longitude DECIMAL(9, 6) NOT NULL
+    longitude DECIMAL(9, 6) NOT NULL,
+    collector VARCHAR(100) NULL,
+    api_url VARCHAR(500) NULL
 );
 
-INSERT INTO cities (id, name, url, latitude, longitude) VALUES
-('basel', 'Basel', 'https://www.parkleitsystem-basel.ch/', 47.559600, 7.588600),
-('bern', 'Bern', 'https://www.parking-bern.ch/', 46.948000, 7.447400),
-('luzern', 'Luzern', 'https://www.pls-luzern.ch/', 47.050200, 8.309300),
-('stgallen', 'St. Gallen', 'https://www.pls-sg.ch/', 47.423900, 9.374800),
-('zurich', 'Zürich', 'https://www.pls-zh.ch/', 47.376900, 8.541700)
-ON DUPLICATE KEY UPDATE name=VALUES(name), url=VALUES(url), latitude=VALUES(latitude), longitude=VALUES(longitude);
+INSERT INTO cities (id, name, url, latitude, longitude, collector, api_url) VALUES
+('basel', 'Basel', 'https://www.parkleitsystem-basel.ch/', 47.559600, 7.588600, 'basel.BaselCollector', 'https://api.parkendd.de/Basel'),
+('bern', 'Bern', 'https://www.parking-bern.ch/', 46.948000, 7.447400, 'bern.BernCollector', 'https://www.parking-bern.ch/parkdata.xml'),
+('luzern', 'Luzern', 'https://www.pls-luzern.ch/', 47.050200, 8.309300, 'luzern.LuzernCollector', 'https://info.pls-luzern.ch/TeqParkingWS/GetFreeParks'),
+('stgallen', 'St. Gallen', 'https://www.pls-sg.ch/', 47.423900, 9.374800, 'stgallen.StGallenCollector', 'https://daten.stadt.sg.ch/api/records/1.0/search/?dataset=freie-parkplatze-in-der-stadt-stgallen-pls&rows=100'),
+('zurich', 'Zürich', 'https://www.pls-zh.ch/', 47.376900, 8.541700, 'zurich.ZurichCollector', 'https://api.parkendd.de/Zuerich')
+ON DUPLICATE KEY UPDATE name=VALUES(name), url=VALUES(url), latitude=VALUES(latitude), longitude=VALUES(longitude), collector=VALUES(collector), api_url=VALUES(api_url);
 
 -- 2. Parkhäuser-Tabelle
 CREATE TABLE IF NOT EXISTS parkhaeuser (

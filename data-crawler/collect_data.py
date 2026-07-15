@@ -6,12 +6,9 @@ PLS (Parkleitsystem) parking guidance systems.
 """
 
 import argparse
-import json
 import os
 import sys
-import time
 from datetime import datetime
-from pathlib import Path
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -38,17 +35,11 @@ COLLECTOR_MAP = {
 
 
 def load_config():
-    """Load city configuration from cities.json."""
-    config_path = Path(__file__).parent / "cities.json"
-
+    """Load city configuration from the `cities` database table."""
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"Error: Configuration file not found at {config_path}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in configuration file: {e}")
+        return db_utils.get_cities_config()
+    except Exception as e:
+        print(f"Error: Could not load city configuration from database: {e}")
         sys.exit(1)
 
 
