@@ -4,7 +4,6 @@ Parses XML data from parking-bern.ch.
 """
 
 import xml.etree.ElementTree as ET
-import requests
 from datetime import datetime
 from base import BaseParkingCollector
 
@@ -14,19 +13,14 @@ class BernCollector(BaseParkingCollector):
 
     def fetch_raw_data(self):
         """
-        Fetch raw XML data from the Bern parking API.
-        
+        Fetch raw XML data from the Bern parking API, retrying on
+        timeout/connection errors.
+
         Returns:
-            str: Raw XML string
+            bytes: Raw XML content (bytes, to handle BOM correctly)
         """
-        try:
-            response = requests.get(self.api_url, timeout=10)
-            response.raise_for_status()
-            # Return bytes to handle BOM correctly
-            return response.content
-        except requests.RequestException as e:
-            print(f"[{datetime.now()}] Error fetching data for {self.city_name}: {e}")
-            raise
+        response = self._request_with_retry()
+        return response.content
 
     def normalize_data(self, raw_data):
         """

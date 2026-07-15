@@ -95,10 +95,14 @@ sequenceDiagram
 
 ### `base.py`
 Definiert die abstrakte Klasse **`BaseParkingCollector`**, von der alle Stadt-Collectoren erben:
-- `fetch_raw_data()` – generischer HTTP-GET (JSON), von `bern.py` überschrieben (XML/bytes).
+- `_request_with_retry()` – HTTP-GET mit Timeout (Default 20s) und bis zu `max_retries` Versuchen (Default 3) mit exponentiellem Backoff (`retry_backoff * 2^n`, Default 2s/4s/…). Wird von `fetch_raw_data()` sowie von `bern.py`s Override genutzt.
+- `fetch_raw_data()` – generischer HTTP-GET (JSON) über `_request_with_retry()`, von `bern.py` überschrieben (liefert rohe XML-Bytes).
 - `normalize_data(raw_data)` – **abstract**, muss von jeder Unterklasse implementiert werden; wandelt API-spezifisches Format in ein einheitliches Schema um (`{status, city, data: {parkings: {...}}, timestamp}`).
+- `_load_last_snapshot()` – lädt den zuletzt gespeicherten JSON-Snapshot aus `data/<city_id>/`, als Fallback-Quelle.
 - `save_data(data)` – schreibt JSON-Snapshot nach `data/<city_id>/<timestamp>.json` und inserted die Messwerte in die MariaDB-Tabelle `pls_fetch_current` (via `db_utils`).
-- `collect()` – High-Level-Methode, ruft die drei Schritte nacheinander auf und fängt Fehler ab.
+- `collect()` – High-Level-Methode: fetch → normalize → save. Schlagen Fetch/Normalize nach allen Retries fehl, wird auf `_load_last_snapshot()` zurückgefallen (Status `"fallback"`, Timestamp = jetzt) statt die Stadt für den Lauf komplett ausfallen zu lassen; nur wenn auch kein Snapshot existiert, gilt der Lauf als fehlgeschlagen.
+
+`timeout`, `max_retries` und `retry_backoff` sind über den Konstruktor pro Collector konfigurierbar (aktuell für alle Städte identisch, da `collect_data.py` sie ohne Override instanziiert).
 
 ### Stadt-Collectoren (erben von `base.BaseParkingCollector`)
 | Datei | Klasse | Quellformat |
