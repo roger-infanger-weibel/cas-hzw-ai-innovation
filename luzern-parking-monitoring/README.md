@@ -1,7 +1,5 @@
 # Luzern Parking Availability Monitor
 
-# Luzern Parking Availability Monitor
-
 **[📱 OPEN LIVE DASHBOARD](https://roger-infanger-weibel.github.io/luzern-parking-monitoring/)**
 
 This project is an automated tool designed to fetch and store real-time parking availability data from the city of Luzern. It scrapes data from the official `pls-luzern.ch` API and archives it for future analysis or visualization.
