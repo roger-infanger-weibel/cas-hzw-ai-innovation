@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+
+
+
+*.html
+!templates/*.html
+!index.html
+!templates/*.html
